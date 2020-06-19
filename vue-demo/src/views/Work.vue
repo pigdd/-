@@ -1,0 +1,389 @@
+<template>
+  <div class="work">
+    <!-- 课程和作业分块 -->
+     <div class="CaW">
+       <van-tabs v-model="active" class="Caw1">
+       <van-tab title="课外生活">
+         <div class="CaW-C">
+           <p>我的图书</p>
+           <div class="CaWBook" >
+              <div v-for="(item, index) in arrBook" v-if="arrBook[index].BNum != 0">
+                  <img :src="arrBook[index].BookImg" alt="">
+                  <van-icon name="cross"  @click="reduce(index)"/>
+              </div>
+           </div>
+         </div>
+         <div class="CaW-W">
+           <p>我的课程</p>
+           <div class="CaWVideo">
+             <div v-for="(item, index) in arrVideo" v-if="arrVideo[index].VNum != 0">
+                  <img :src="arrVideo[index].VideoImg" alt="">
+                  <van-icon name="cross"  @click="reduce2(index)"/>
+             </div>
+           </div>
+         </div>
+       </van-tab>
+       <van-tab title="课堂作业">
+         <div class="homework">
+           <div class="hw1">
+             <!-- 搜索框 -->
+             <!-- <van-search v-model="value" placeholder="请输入搜索关键词" /> -->
+             <form action="/" class="form1">
+                <van-search v-model="value" show-action placeholder="请搜索教师名字" @search="onSearch"/>
+                
+                <p @click="addwork()">{{work}}</p>
+                <div class="hw1-work">
+
+                </div>
+             </form>
+           </div>
+           <div class="hw2">
+             <p>上传作业</p>
+             <van-search v-model="workvalue" show-action left-icon="friends-o" placeholder="请输入要上传作业的教师姓名" @search="onSearch">
+                <div slot="action" @click="Upload2">上传</div>
+             </van-search>
+             <van-uploader v-model="fileList" :after-read="afterRead" ref='selectfile' accept=".jpg,.gif,.png,.jpeg,.txt,.pdf,.doc,.docx,.xls,.xlsx"/>
+             <van-button type="primary" @click="Upload">上传作业</van-button>
+           </div>
+         </div>
+       </van-tab>
+       </van-tabs>
+     </div>
+  </div>
+</template>
+<script>
+export default {
+  name:"work",
+  data() {
+    return {
+      active:2,
+      arrBook:[],
+      arrVideo:[],
+      Book:[],
+      value: '',
+      workvalue:'',
+       workimg:[],
+      arrTeacher:[],
+      work:'',
+      fileList: [
+       
+      ],
+      workName:'',
+      arrUser:[],
+    }
+  },
+  methods: {
+       getBook(){
+        this.$ajax
+        .get("routes/book/getBook")
+        .then(response =>{
+          console.log(response)
+          this.arrBook = response.data
+        })
+        .catch(err => {
+          console.log(err)
+        })
+      },
+      getVideo(){
+         this.$ajax
+        .get("/routes/video/getVideo")
+        .then(response =>{
+          console.log(response)
+          this.arrVideo = response.data
+        })
+        .catch(err => {
+          console.log(err)
+        })
+      },
+      afterRead(file) {
+      file.status = 'uploading';
+      file.message = '上传中...';
+
+      setTimeout(() => {
+        file.status = 'done';
+        file.message = '上传成功';
+      }, 1000);
+    },
+     onSearch(val) {
+      // Toast(val);
+      console.log("搜索的内容" + this.value);
+      const params2 = { 
+              TName : this.value,
+        };
+           this.$ajax.post("/routes/teacher/registerteacher",params2)
+           .then((res) => {
+             console.log(res.data.code)
+             if(res.data.code == 1){
+              alert("显示该教师布置的作业")  
+               this.$ajax
+              .get("/routes/teacher/getTeacher")
+              .then(response =>{
+                 console.log(response)
+               this.arrTeacher = response.data
+                for(var i =0 ; i < 18; i++){
+                  if(this.value == this.arrTeacher[i].TName){
+                    console.log(this.arrTeacher[i].TWork)
+                    this.work =this.arrTeacher[i].TName +"教师:"+ this.arrTeacher[i].TWork
+  
+                  } 
+                } 
+               
+              })
+              .catch(err => {
+               console.log(err)
+              })
+             }else{
+              alert('该教师未找到，请确认教师的用户名！')
+              this.value = ''
+              }  
+               })
+              .catch(err => {console.log(err)})
+    },
+     getWorkName(){
+       this.$ajax
+        .get("/routes/user/getLogin")
+        .then(response =>{
+          this.arrUser = response.data
+          console.log("获取登录的状态")
+          console.log(this.arrUser.userName)
+          this.workName = this.arrUser.userName
+        })
+        .catch(err => {
+          console.log(err)
+        })
+    },
+    Upload(){
+      // alert(this.fileList)
+     alert("确认上传")
+      console.log(this.$refs.selectfile.fileList[0].file.name)
+       var PicData = new FormData();
+      PicData.append('Content',this.$refs.selectfile.fileList[0].file);
+      this.$ajax.post('/routes/user/UploadImg', PicData
+         ).then(function (response) {
+          
+          // this.workimg = response.data.data[0];
+          console.log(response.data.data[0]);
+           
+        }).catch(function (error) {
+      console.log(error);
+    });
+   
+    },
+    Upload2(){
+      const params = { 
+              WorkName : this.arrUser.userName,
+              WorkImg : "http://localhost:3000/Public/" + this.$refs.selectfile.fileList[0].file.name,
+              TeacherName : this.workvalue
+        };
+      this.$ajax.post("/routes/work/addwork",params)
+
+                    .then((res) => {
+             if(res.ok){
+              console.log("成")
+               
+             }else{
+              console.log("作业保存成功")
+              this.workvalue = '';
+             this.$refs.selectfile.fileList[0].file = ''
+              
+              }
+    
+               })
+    },
+  //获取现在登录的对象reduce(index)
+   reduce(index){
+           const obj = {
+             id:this.arrBook[index]._id,
+             BNum:0
+
+           };
+           return this.$ajax.post("/routes/book/updateBook",obj)
+           .then((res) => {
+             if(res.ok){
+              console.log("成")
+               
+             }else{
+              console.log("失败")
+}
+    
+               })
+       
+     
+     },
+     reduce2(index){
+         const obj = {
+             id:this.arrVideo[index]._id,
+             VNum:0
+
+           };
+           return this.$ajax.post("/routes/video/updateVideo",obj)
+           .then((res) => {
+             if(res.ok){
+              console.log("成")
+               
+             }else{
+              console.log("失败")
+}
+    
+               })
+       
+     }
+  },
+  
+  mounted() {
+     this.getBook(),
+    this.getVideo()
+    this.getWorkName()
+   
+  },
+}
+</script>
+<style scoped>
+
+  *{
+    padding: 0;
+    margin: 0
+  }
+  .CaW{
+    width:96vw;
+    height:90vh;
+    /* border:1px solid black; */
+    position: relative;
+    top:10px;
+    left:7px;
+  }
+  .CaW .Caw1{
+    width:100%;
+    height:95%;
+    /* border:1px solid red; */
+   
+  }
+  .CaW .Caw1 .CaW-C{
+    width:344px;
+    height:201px;
+    /* border:1px solid black; */
+    position: absolute;
+    left:8px;
+    top:55px;
+    box-shadow: 2px 2px 3px rgb(224, 224, 245);
+  }
+  .CaW .Caw1 .CaW-C p,
+  .CaW .Caw1 .CaW-W p{
+    position: relative;
+    /* border:1px solid red; */
+    width:71px;
+    top:8px;
+    left:8px;
+    font-size: 17px;
+    border-radius: 5px;
+    /* background-color:#FFBB00 ; */
+  }
+   .CaW .Caw1 .CaW-C .CaWBook{
+     width:98%;
+     height:80%;
+     /* border:1px solid green; */
+     position: relative;
+     top:17px;
+     display: flex;
+     overflow: hidden;
+     overflow-x: scroll
+   }
+  .CaW .Caw1 .CaW-C .CaWBook div{
+    /* display: flex; */
+    /* border:1px solid red; */
+    width:70%;
+    height:100%;
+    position: relative;
+  }
+  .CaW .Caw1 .CaW-C .CaWBook div img{
+    width:111px;
+    height:124px;
+    border:1px solid rgb(218, 218, 218);
+    box-shadow: 1px 2px 2px  rgb(218, 218, 218);
+    margin:0 1px;
+    position:relative;
+    top:10px;
+  }
+  .CaW .Caw1 .CaW-C .CaWBook div .van-icon{
+    position: absolute;
+    left:97px;
+    top:118px;
+  }
+  .CaW .Caw1 .CaW-W{
+    width:344px;
+    height:262px;
+    /* border:1px solid gray; */
+    position: absolute;
+    left:8px;
+    top:270px;
+     box-shadow: 2px 2px 3px rgb(224, 224, 245);
+  }
+    .CaW .Caw1 .CaW-W .CaWVideo{
+     width:98%;
+     height:80%;
+     /* border:1px solid green; */
+     position: relative;
+     top:17px;
+     display: flex;
+     flex-direction: column;
+     overflow: hidden;
+     overflow-y: scroll
+   }
+   .CaW .Caw1 .CaW-W .CaWVideo div{
+     width:90%;
+     height:60%;
+   }
+    .CaW .Caw1 .CaW-W .CaWVideo div img{
+      width:284px;
+      height: 120px;
+      border:1px solid rgb(218, 218, 218);
+      box-shadow: 1px 2px 2px  rgb(218, 218, 218);
+      position: relative;
+      left:20px;
+    }
+    .CaW .homework{
+      width:345px;
+      height:523px;
+      /* border:1px solid blue; */
+      position: relative;
+      left:5px;
+    }
+    .CaW .homework .hw1{
+      width:95%;
+      height:32%;
+      /* border:1px solid black; */
+      position: relative;
+      left:5px
+    }
+    .CaW .homework .hw2{
+      width:95%;
+      height:45%;
+      /* border:1px solid black; */
+      position: relative;
+      left:5px;
+      top:10px;
+    }
+    .CaW .homework .hw1 p{
+      width:96%;
+      height:108px;
+      border:1px solid rgb(163, 161, 161);
+      box-shadow: 3px 3px 2px rgb(163, 161, 161);
+      margin: 0 8px;
+    }
+    .CaW .homework .hw1 .form1 p{
+      overflow:hidden;
+      overflow-y: scroll
+    }
+    .CaW .homework .hw2 .van-button{
+      position: relative;
+      right:10px;
+      bottom:10px;
+    }
+     .CaW .homework .hw2 p{
+       position: relative;
+       left:11px;
+       font-size: 19px;
+       font-weight: bold;
+     }
+</style>
+  
